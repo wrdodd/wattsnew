@@ -1,5 +1,6 @@
 import type { Config } from "./config.js";
-import { CATEGORIES, type Article, type RawItem } from "./types.js";
+import type { Article, RawItem } from "./types.js";
+import { loadAppConfig } from "./appconfig.js";
 import { fetchCategory } from "./fetch.js";
 import { isPaywalled } from "./paywall.js";
 import { SeenStore } from "./dedup.js";
@@ -15,7 +16,7 @@ type Candidate = { it: RawItem; id: string };
 function keywordBonus(it: RawItem, keywords: string[]): number {
   if (keywords.length === 0) return 0;
   const hay = `${it.title} ${it.snippet}`.toLowerCase();
-  return keywords.some((k) => hay.includes(k)) ? 100 : 0;
+  return keywords.some((k) => hay.includes(k.toLowerCase())) ? 100 : 0;
 }
 
 /**
@@ -59,10 +60,11 @@ function rankAndPick(
 /** One full curation pass: fetch → filter → dedup → pick → summarize → write. */
 export async function curate(config: Config): Promise<void> {
   const startedAt = new Date();
+  const app = await loadAppConfig(config.dataDir);
   const seen = new SeenStore(config.dataDir);
   await seen.load();
   const summarizer = createSummarizer(config);
-  const recencyCutoff = startedAt.getTime() - config.recencyHours * 3600 * 1000;
+  const recencyCutoff = startedAt.getTime() - app.recencyHours * 3600 * 1000;
   console.log(
     `[${startedAt.toISOString()}] curate start — model=${summarizer.label}, remembered=${seen.size}`,
   );
@@ -73,11 +75,12 @@ export async function curate(config: Config): Promise<void> {
     const disliked = [...sourceScores.values()].filter((s) => s < 0).length;
     console.log(`  personalization: ${liked} liked / ${disliked} disliked source(s)`);
   }
-  const perSourceCap = Math.max(3, Math.ceil(config.maxPerCategory * 0.5));
+  const perSourceCap = Math.max(3, Math.ceil(app.maxPerCategory * 0.5));
 
   const fresh: Article[] = [];
-  for (const category of CATEGORIES) {
-    const raw = await fetchCategory(category);
+  for (const cat of app.categories) {
+    const category = cat.name;
+    const raw = await fetchCategory(category, cat.feeds);
 
     const seenThisRun = new Set<string>();
     const candidates: { it: RawItem; id: string }[] = [];
@@ -93,9 +96,9 @@ export async function curate(config: Config): Promise<void> {
     const top = rankAndPick(
       candidates,
       sourceScores,
-      config.maxPerCategory,
+      app.maxPerCategory,
       perSourceCap,
-      category === config.boostCategory ? (it) => keywordBonus(it, config.boostKeywords) : undefined,
+      category === app.boostCategory ? (it) => keywordBonus(it, app.boostKeywords) : undefined,
     );
 
     const summaries = await summarizer.summarize(
@@ -121,10 +124,16 @@ export async function curate(config: Config): Promise<void> {
   }
 
   // Remember dedup ids a little longer than the feed keeps articles.
-  seen.prune(config.feedRetentionDays + 14);
+  seen.prune(app.feedRetentionDays + 14);
   await seen.save();
 
   const existing = await loadFeed(config.dataDir);
-  const feed = await writeFeed(config.dataDir, existing, fresh, config.feedRetentionDays);
+  const feed = await writeFeed(
+    config.dataDir,
+    existing,
+    fresh,
+    app.feedRetentionDays,
+    app.categories.map((c) => c.name),
+  );
   console.log(`curate done — +${fresh.length} new, feed now holds ${feed.articles.length} articles`);
 }

@@ -1,6 +1,6 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { CATEGORIES, type Article, type Feed } from "./types.js";
+import type { Article, Feed } from "./types.js";
 
 /** Load the existing public feed, or an empty one if none exists yet. */
 export async function loadFeed(dataDir: string): Promise<Feed> {
@@ -11,7 +11,7 @@ export async function loadFeed(dataDir: string): Promise<Feed> {
   } catch {
     /* fall through to empty */
   }
-  return { generatedAt: new Date().toISOString(), categories: CATEGORIES, articles: [] };
+  return { generatedAt: new Date().toISOString(), categories: [], articles: [] };
 }
 
 /**
@@ -24,6 +24,7 @@ export async function writeFeed(
   existing: Feed,
   fresh: Article[],
   retentionDays: number,
+  categories: string[],
 ): Promise<Feed> {
   const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
   const byId = new Map<string, Article>();
@@ -36,7 +37,7 @@ export async function writeFeed(
 
   const feed: Feed = {
     generatedAt: new Date().toISOString(),
-    categories: CATEGORIES,
+    categories,
     articles,
   };
   await mkdir(dataDir, { recursive: true });

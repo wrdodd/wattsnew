@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ThumbsUp,
@@ -9,14 +10,14 @@ import {
   Moon,
   Newspaper,
   SignOut,
+  GearSix,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { CATEGORIES, type Article, type Feed, type Reaction, type Reactions } from "@/lib/types";
+import { DEFAULT_CATEGORIES, type Article, type Feed, type Reaction, type Reactions } from "@/lib/types";
+import { applyTheme } from "@/lib/theme";
 
-type CategoryFilter = "All" | (typeof CATEGORIES)[number];
-const FILTERS: CategoryFilter[] = ["All", ...CATEGORIES];
 const POLL_MS = 5 * 60 * 1000;
 
 function relativeTime(iso: string): string {
@@ -34,7 +35,8 @@ function relativeTime(iso: string): string {
 export default function Page() {
   const [feed, setFeed] = useState<Feed | null>(null);
   const [reactions, setReactions] = useState<Reactions>({});
-  const [category, setCategory] = useState<CategoryFilter>("All");
+  const [categories, setCategories] = useState<string[]>([...DEFAULT_CATEGORIES]);
+  const [category, setCategory] = useState<string>("All");
   const [likedOnly, setLikedOnly] = useState(false);
   const [hideDisliked, setHideDisliked] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -53,12 +55,24 @@ export default function Page() {
     localStorage.setItem("theme", dark ? "dark" : "light");
   }, [dark]);
 
+  // Load categories + theme from config.json (customizable in Settings).
+  useEffect(() => {
+    fetch("/api/config", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((cfg) => {
+        if (!cfg) return;
+        if (Array.isArray(cfg.categories) && cfg.categories.length > 0) {
+          setCategories(cfg.categories.map((c: { name: string }) => c.name));
+        }
+        if (cfg.theme) applyTheme(cfg.theme);
+      })
+      .catch(() => {});
+  }, []);
+
   // Restore the selected category filter, then persist it on change.
   useEffect(() => {
     const saved = localStorage.getItem("category");
-    if (saved && (FILTERS as string[]).includes(saved)) {
-      setCategory(saved as CategoryFilter);
-    }
+    if (saved) setCategory(saved);
     setFilterReady(true);
   }, []);
   useEffect(() => {
@@ -113,12 +127,14 @@ export default function Page() {
 
   const articles = feed?.articles ?? [];
 
+  const filters = useMemo(() => ["All", ...categories], [categories]);
+
   const counts = useMemo(() => {
     const c: Record<string, number> = { All: articles.length };
-    for (const cat of CATEGORIES) c[cat] = 0;
+    for (const cat of categories) c[cat] = 0;
     for (const a of articles) c[a.category] = (c[a.category] ?? 0) + 1;
     return c;
-  }, [articles]);
+  }, [articles, categories]);
 
   const filtered = useMemo(
     () =>
@@ -148,7 +164,7 @@ export default function Page() {
 
         <div className="flex min-w-0 flex-1 items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1">
-            {FILTERS.map((f) => (
+            {filters.map((f) => (
               <Button
                 key={f}
                 size="lg"
@@ -160,7 +176,7 @@ export default function Page() {
                 <span
                   className={cn(
                     "ml-1.5 [font-variant:normal]",
-                    category === f ? "text-primary-foreground" : "text-chart-2",
+                    category === f ? "text-primary-foreground" : "text-primary",
                   )}
                 >
                   {counts[f] ?? 0}
@@ -192,6 +208,11 @@ export default function Page() {
             </Button>
             <Button size="icon-lg" variant="ghost" onClick={loadFeed} title="Refresh">
               <ArrowsClockwise size={20} />
+            </Button>
+            <Button size="icon-lg" variant="ghost" asChild title="Settings">
+              <Link href="/settings">
+                <GearSix size={20} />
+              </Link>
             </Button>
             <Button
               size="icon-lg"

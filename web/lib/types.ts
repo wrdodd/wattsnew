@@ -1,4 +1,5 @@
-export const CATEGORIES = [
+/** Fallback category order, used only if config.json can't be read. */
+export const DEFAULT_CATEGORIES = [
   "AI",
   "Business",
   "Entertainment",
@@ -9,7 +10,7 @@ export const CATEGORIES = [
   "Local",
 ] as const;
 
-export type Category = (typeof CATEGORIES)[number];
+export type Category = string;
 
 export interface Article {
   id: string;
@@ -25,7 +26,7 @@ export interface Article {
 
 export interface Feed {
   generatedAt: string;
-  categories: readonly Category[];
+  categories: string[];
   articles: Article[];
 }
 

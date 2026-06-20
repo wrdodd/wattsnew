@@ -59,24 +59,25 @@ All via environment variables (see [`.env.example`](.env.example)):
 | `WEB_PORT` | `8080` | Host port for the reader |
 | `CRON` | `0 8,18 * * *` | Curation schedule (cron) |
 | `TZ` / `TIMEZONE` | `America/New_York` | Timezone for the schedule |
-| `MAX_PER_CATEGORY` | `10` | Articles added per category per run |
-| `RECENCY_HOURS` | `48` | Max age for a "new" article |
-| `FEED_RETENTION_DAYS` | `7` | How long articles stay before aging out |
-| `BOOST_CATEGORY` / `BOOST_KEYWORDS` | `Local` / — | Float keyword matches (e.g. your town) to the top of one category |
 | `LLM_PROVIDER` | `none` | `none` \| `anthropic` \| `openai` for summaries |
+
+Everything else — **feeds, categories, per-category counts, recency/retention,
+keyword boosting, accent color, and reading size** — is configured in the in-app
+**Settings** page (⚙️ in the header) and stored in `config.json` on the data
+volume. No rebuild needed.
 
 ### Customizing feeds
 
-For now, categories and feeds live in
-[`worker/src/sources.ts`](worker/src/sources.ts) — edit the list and rebuild the
-worker. A `config.json` + in-app **Settings UI** (no rebuild needed) is the next
-milestone — see the Roadmap.
+Open **Settings** → add/remove/reorder categories and feeds, set per-category
+counts, pick a boost category + keywords (e.g. your town for "Local"), and choose
+the accent color and reading size. Changes to feeds apply on the next curation
+run; theme changes apply immediately. (You can also edit `config.json` directly.)
 
 ## Roadmap
 
-- [ ] **Config-driven feeds/categories** via `config.json` + an in-app Settings UI
-- [ ] **Multiple users** (per-user logins, reactions, preferences)
-- [ ] **Theme settings** (accent color, font-size presets) in the UI
+- [x] **Config-driven feeds/categories** via `config.json` + an in-app Settings UI
+- [x] **Theme settings** (accent color, font-size presets) in the UI
+- [ ] **Multiple users** (per-user logins, reactions, preferences) — next up
 - [ ] **OPML import/export**
 - [ ] **Mobile/responsive layout** & PWA
 - [ ] Read/unread, search, save-for-later

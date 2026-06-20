@@ -1,6 +1,5 @@
 import Parser from "rss-parser";
-import type { Category, RawItem } from "./types.js";
-import { SOURCES, type Source } from "./sources.js";
+import type { Category, FeedSource, RawItem } from "./types.js";
 import { stripHtml, truncateWords } from "./util.js";
 
 const parser = new Parser({
@@ -13,7 +12,7 @@ const parser = new Parser({
   },
 });
 
-async function fetchSource(category: Category, source: Source): Promise<RawItem[]> {
+async function fetchSource(category: Category, source: FeedSource): Promise<RawItem[]> {
   const feed = await parser.parseURL(source.url);
   const out: RawItem[] = [];
   for (const item of feed.items ?? []) {
@@ -36,8 +35,7 @@ async function fetchSource(category: Category, source: Source): Promise<RawItem[
 }
 
 /** Pull every source for a category, tolerating dead/slow feeds. */
-export async function fetchCategory(category: Category): Promise<RawItem[]> {
-  const sources = SOURCES[category];
+export async function fetchCategory(category: Category, sources: FeedSource[]): Promise<RawItem[]> {
   const settled = await Promise.allSettled(sources.map((s) => fetchSource(category, s)));
   const items: RawItem[] = [];
   for (let i = 0; i < settled.length; i++) {

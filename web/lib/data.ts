@@ -1,6 +1,6 @@
 import { readFile, writeFile, rename, mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { CATEGORIES, type Feed, type Reaction, type Reactions } from "./types";
+import { type Feed, type Reaction, type Reactions } from "./types";
 
 /** Shared volume mounted at /data in the container; overridable for local dev. */
 export function dataDir(): string {
@@ -15,7 +15,7 @@ export async function readFeed(): Promise<Feed> {
   } catch {
     /* no feed yet */
   }
-  return { generatedAt: new Date(0).toISOString(), categories: CATEGORIES, articles: [] };
+  return { generatedAt: new Date(0).toISOString(), categories: [], articles: [] };
 }
 
 export async function readReactions(): Promise<Reactions> {

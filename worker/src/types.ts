@@ -1,15 +1,34 @@
-export const CATEGORIES = [
-  "AI",
-  "Business",
-  "Entertainment",
-  "Gaming",
-  "Politics",
-  "Science",
-  "Tech",
-  "Local",
-] as const;
+/** A category is just a name now — defined in config.json, not hardcoded. */
+export type Category = string;
 
-export type Category = (typeof CATEGORIES)[number];
+export interface FeedSource {
+  name: string;
+  url: string;
+}
+
+export interface CategoryConfig {
+  name: string;
+  feeds: FeedSource[];
+}
+
+export interface ThemeConfig {
+  /** CSS color for the accent (e.g. an oklch() or hex string). */
+  accent: string;
+  /** Reading text size preset. */
+  fontScale: "comfortable" | "large" | "xlarge";
+}
+
+/** The full app configuration, persisted to config.json on the shared volume. */
+export interface AppConfig {
+  categories: CategoryConfig[];
+  maxPerCategory: number;
+  recencyHours: number;
+  feedRetentionDays: number;
+  /** Category whose articles get boosted when they match boostKeywords. */
+  boostCategory: string;
+  boostKeywords: string[];
+  theme: ThemeConfig;
+}
 
 /** A single curated news item, as rendered by the website. */
 export interface Article {
@@ -34,7 +53,7 @@ export interface Article {
 /** The public feed the website reads from the shared volume. */
 export interface Feed {
   generatedAt: string;
-  categories: readonly Category[];
+  categories: string[];
   articles: Article[];
 }
 
