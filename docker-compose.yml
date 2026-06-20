@@ -1,0 +1,34 @@
+# Daily News — self-hosted news reader.
+#   worker : curates RSS into /data/feed.json on a schedule
+#   web    : Next.js reader, published on WEB_PORT (default 8080)
+# Both share one volume. Quick start:
+#   cp .env.example .env   # set a password
+#   docker compose up -d   # → http://localhost:8080
+
+services:
+  worker:
+    build: ./worker
+    image: ghcr.io/OWNER/dailynews-worker:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - newsdata:/data
+
+  web:
+    build: ./web
+    image: ghcr.io/OWNER/dailynews-web:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    ports:
+      - "${WEB_PORT:-8080}:3000"
+    volumes:
+      - newsdata:/data
+    depends_on:
+      - worker
+
+volumes:
+  newsdata:

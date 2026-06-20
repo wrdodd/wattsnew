@@ -1,0 +1,12 @@
+# secrets
+.env
+
+# deps / build output
+node_modules/
+.next/
+web/.next/
+worker/.data-test/
+
+# misc
+*.log
+.DS_Store
