@@ -1,8 +1,8 @@
-# Worker: RSS news curator. Runs a cron loop (8am & 6pm America/Los_Angeles)
+# Worker: RSS news curator. Runs a cron loop on the configured schedule (CRON)
 # and can also run once via `docker compose run --rm worker npm run run-once`.
 FROM node:24-alpine
 
-# tzdata so the 8am/6pm cron resolves America/Los_Angeles correctly.
+# tzdata so the cron resolves the configured timezone (TZ) correctly.
 RUN apk add --no-cache tzdata
 
 WORKDIR /app
