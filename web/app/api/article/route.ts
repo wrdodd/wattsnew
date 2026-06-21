@@ -1,10 +1,54 @@
-import { extractFromHtml } from "@extractus/article-extractor";
+import { extractFromHtml, addTransformations } from "@extractus/article-extractor";
 import { readFeed } from "@/lib/data";
 import { isAuthed, unauthorized } from "@/lib/auth";
 import { fetchRenderedHtml } from "@/lib/browser";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+// Valnet CMS sites (Collider, ScreenRant, GameRant, MovieWeb, CBR, TheGamer…)
+// inject "<Site> Exclusive" quiz widgets and author byline/bio/sign-in blocks
+// that fool the readability heuristic — on short articles the quiz text blob
+// gets extracted INSTEAD of the article. Scope extraction to the real
+// #article-body container and strip the injected widgets so only the article
+// survives. No-op on pages without that container, so it's safe.
+const VALNET_JUNK = [
+  ".sensa-widget-container",
+  ".cq-quiz",
+  '[class^="cq-"]',
+  '[class*=" cq-"]',
+  ".tag-interaction-widget",
+  ".trending-now",
+  ".w-hub-widgets",
+  ".related-articles",
+  '[class*="newsletter"]',
+  '[class*="recirc"]',
+  "aside",
+  "figure.related",
+  ".gallery-cta",
+].join(", ");
+
+addTransformations({
+  patterns: [
+    /collider\.com/,
+    /screenrant\.com/,
+    /gamerant\.com/,
+    /movieweb\.com/,
+    /cbr\.com/,
+    /thegamer\.com/,
+    /makeuseof\.com/,
+  ],
+  pre: (document) => {
+    const body =
+      document.querySelector("#article-body") || document.querySelector(".article-body");
+    if (body) {
+      body.querySelectorAll(VALNET_JUNK).forEach((el) => el.remove());
+      const docBody = document.querySelector("body");
+      if (docBody) docBody.innerHTML = body.outerHTML;
+    }
+    return document;
+  },
+});
 
 const FETCH_HEADERS = {
   "user-agent":
