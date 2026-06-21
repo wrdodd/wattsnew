@@ -392,13 +392,15 @@ function ReadingPane({
 
   return (
     <div ref={scrollRef} className="h-full overflow-y-auto">
+      {/* Mobile-only sticky back bar — stays visible while scrolling the article
+          so there's always a way back to the list. Desktop shows the list
+          alongside, so it doesn't need one. */}
+      <div className="sticky top-0 z-10 flex items-center border-b bg-background/90 px-2 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/75 md:hidden">
+        <Button variant="ghost" size="lg" className="gap-2 rounded-full" onClick={onBack}>
+          <ArrowLeft size={22} weight="bold" /> Back to list
+        </Button>
+      </div>
       <article className="mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-8 lg:px-12">
-        <button
-          onClick={onBack}
-          className="mb-4 flex items-center gap-1 text-base text-muted-foreground md:hidden"
-        >
-          <ArrowLeft size={20} /> Back to list
-        </button>
         <div className="mb-4 flex items-center gap-3">
           <Badge className="text-sm">{article.category}</Badge>
           <span className="text-base text-muted-foreground">
