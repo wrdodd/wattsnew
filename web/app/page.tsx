@@ -397,9 +397,8 @@ function ReadingPane({
           Desktop shows the list alongside, so it doesn't need one. */}
       <div className="sticky top-0 z-10 flex justify-end px-2 py-2 md:hidden">
         <Button
-          variant="secondary"
           size="icon-lg"
-          className="rounded-full shadow-sm"
+          className="rounded-full bg-accent text-black shadow-sm hover:bg-accent/90"
           onClick={onBack}
           title="Close — back to list"
           aria-label="Back to list"
