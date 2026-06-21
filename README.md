@@ -32,7 +32,7 @@ stories to tune what you see.
 Requires Docker.
 
 ```bash
-git clone https://github.com/OWNER/wattsnew.git
+git clone https://github.com/wrdodd/wattsnew.git
 cd wattsnew
 cp .env.example .env          # set DASHBOARD_PASSWORD (and anything else)
 docker compose up -d --build  # → http://localhost:8080
