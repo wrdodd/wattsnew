@@ -18,28 +18,37 @@ export async function readFeed(): Promise<Feed> {
   return { generatedAt: new Date(0).toISOString(), categories: [], articles: [] };
 }
 
-export async function readReactions(): Promise<Reactions> {
+// reactions.json is keyed by username → { articleId: "up" | "down" }.
+type AllReactions = Record<string, Reactions>;
+
+async function readAllReactions(): Promise<AllReactions> {
   try {
-    const raw = await readFile(join(dataDir(), "reactions.json"), "utf8");
-    return JSON.parse(raw) as Reactions;
+    return JSON.parse(await readFile(join(dataDir(), "reactions.json"), "utf8")) as AllReactions;
   } catch {
     return {};
   }
 }
 
-/** Set or clear a reaction, then persist atomically (tmp file + rename). */
-export async function setReaction(id: string, reaction: Reaction | null): Promise<Reactions> {
-  const reactions = await readReactions();
-  if (reaction === null) {
-    delete reactions[id];
-  } else {
-    reactions[id] = reaction;
-  }
+export async function readReactions(user: string): Promise<Reactions> {
+  return (await readAllReactions())[user] ?? {};
+}
+
+/** Set or clear a reaction for one user, then persist atomically. */
+export async function setReaction(
+  user: string,
+  id: string,
+  reaction: Reaction | null,
+): Promise<Reactions> {
+  const all = await readAllReactions();
+  const mine = all[user] ?? {};
+  if (reaction === null) delete mine[id];
+  else mine[id] = reaction;
+  all[user] = mine;
+
   const dir = dataDir();
   await mkdir(dir, { recursive: true });
-  const target = join(dir, "reactions.json");
   const tmp = join(dir, `reactions.json.tmp-${process.pid}`);
-  await writeFile(tmp, JSON.stringify(reactions, null, 2), "utf8");
-  await rename(tmp, target);
-  return reactions;
+  await writeFile(tmp, JSON.stringify(all, null, 2), "utf8");
+  await rename(tmp, join(dir, "reactions.json"));
+  return mine;
 }

@@ -80,7 +80,7 @@ run; theme changes apply immediately. (You can also edit `config.json` directly.
 - [x] **OPML import/export**
 - [x] **Mobile/responsive layout** (master-detail on phones)
 - [x] Prebuilt images on GHCR + GitHub Actions CI
-- [ ] **Multiple users** (per-user logins, reactions, preferences) — next up
+- [x] **Multiple users** — per-user logins & reactions; admin-managed accounts
 - [ ] Read/unread, search, save-for-later
 - [ ] PWA install
 

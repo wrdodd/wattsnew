@@ -51,6 +51,12 @@ export default function SettingsPage() {
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const [account, setAccount] = useState<{ username: string; role: string } | null>(null);
+  const [users, setUsers] = useState<{ username: string; role: string; createdAt: string }[]>([]);
+  const [newUser, setNewUser] = useState({ username: "", password: "", role: "user" });
+  const [newPassword, setNewPassword] = useState("");
+  const [acctMsg, setAcctMsg] = useState("");
+  const isAdmin = account?.role === "admin";
 
   useEffect(() => {
     fetch("/api/config", { cache: "no-store" })
@@ -64,6 +70,56 @@ export default function SettingsPage() {
       .then(setCfg)
       .catch(() => {});
   }, []);
+
+  async function refreshUsers() {
+    const r = await fetch("/api/users", { cache: "no-store" });
+    if (r.ok) setUsers(await r.json());
+  }
+
+  useEffect(() => {
+    fetch("/api/account", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((a) => {
+        setAccount(a);
+        if (a?.role === "admin") refreshUsers();
+      })
+      .catch(() => {});
+  }, []);
+
+  async function changePassword() {
+    setAcctMsg("");
+    const r = await fetch("/api/account", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ password: newPassword }),
+    });
+    if (r.ok) {
+      setNewPassword("");
+      setAcctMsg("Password updated");
+    } else {
+      setAcctMsg((await r.json().catch(() => ({})))?.error || "Failed");
+    }
+  }
+
+  async function addUserHandler() {
+    setAcctMsg("");
+    const r = await fetch("/api/users", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(newUser),
+    });
+    if (r.ok) {
+      setUsers(await r.json());
+      setNewUser({ username: "", password: "", role: "user" });
+    } else {
+      setAcctMsg((await r.json().catch(() => ({})))?.error || "Failed");
+    }
+  }
+
+  async function deleteUserHandler(username: string) {
+    const r = await fetch(`/api/users?username=${encodeURIComponent(username)}`, { method: "DELETE" });
+    if (r.ok) setUsers(await r.json());
+  }
 
   function patch(p: Partial<AppConfig>) {
     setCfg((c) => (c ? { ...c, ...p } : c));
@@ -148,23 +204,125 @@ export default function SettingsPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         </div>
         <div className="flex items-center gap-3">
-          {status === "saved" && <span className="text-sm text-primary">Saved</span>}
-          {status === "error" && <span className="text-sm text-destructive">{error}</span>}
-          <Button size="lg" className="rounded-full" onClick={save} disabled={status === "saving"}>
-            <FloppyDisk size={18} />
-            {status === "saving" ? "Saving…" : "Save"}
-          </Button>
+          {isAdmin && status === "saved" && <span className="text-sm text-primary">Saved</span>}
+          {isAdmin && status === "error" && (
+            <span className="text-sm text-destructive">{error}</span>
+          )}
+          {isAdmin && (
+            <Button size="lg" className="rounded-full" onClick={save} disabled={status === "saving"}>
+              <FloppyDisk size={18} />
+              {status === "saving" ? "Saving…" : "Save"}
+            </Button>
+          )}
         </div>
       </header>
 
-      <p className="mb-8 text-sm text-muted-foreground">
-        Feed and category changes apply on the next scheduled curation run. Theme changes apply
-        immediately.
-      </p>
+      {/* Account (everyone) */}
+      <section className="mb-10">
+        <h2 className="mb-3 text-lg font-semibold">Account</h2>
+        <p className="mb-3 text-sm text-muted-foreground">
+          Signed in as{" "}
+          <span className="font-medium text-foreground">{account?.username ?? "…"}</span>
+          {isAdmin ? " (admin)" : ""}.
+        </p>
+        <label className="mb-1 block text-sm font-medium">Change your password</label>
+        <div className="flex max-w-md gap-2">
+          <input
+            type="password"
+            className={inputCls}
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="New password"
+          />
+          <Button
+            variant="outline"
+            className="shrink-0 rounded-full"
+            onClick={changePassword}
+            disabled={newPassword.length < 4}
+          >
+            Update
+          </Button>
+        </div>
+        {acctMsg && <p className="mt-2 text-sm text-primary">{acctMsg}</p>}
+      </section>
+
+      {/* Users (admin only) */}
+      {isAdmin && (
+        <section className="mb-10">
+          <h2 className="mb-3 text-lg font-semibold">Users</h2>
+          <ul className="mb-4 divide-y overflow-hidden rounded-xl border">
+            {users.map((u) => (
+              <li key={u.username} className="flex items-center justify-between px-4 py-2">
+                <span>
+                  {u.username}{" "}
+                  <span className="text-sm text-muted-foreground">({u.role})</span>
+                </span>
+                {u.username !== account?.username && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    title="Remove user"
+                    onClick={() => deleteUserHandler(u.username)}
+                  >
+                    <Trash size={16} className="text-destructive" />
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+          <label className="mb-1 block text-sm font-medium">Add user</label>
+          <div className="flex flex-wrap gap-2">
+            <input
+              className={inputCls + " sm:max-w-[180px]"}
+              value={newUser.username}
+              placeholder="username"
+              onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+            />
+            <input
+              type="password"
+              className={inputCls + " sm:max-w-[180px]"}
+              value={newUser.password}
+              placeholder="password"
+              onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+            />
+            <select
+              className={inputCls + " sm:max-w-[130px]"}
+              value={newUser.role}
+              onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+            >
+              <option value="user">user</option>
+              <option value="admin">admin</option>
+            </select>
+            <Button
+              variant="outline"
+              className="shrink-0 rounded-full"
+              onClick={addUserHandler}
+              disabled={!newUser.username.trim() || newUser.password.length < 4}
+            >
+              <Plus size={16} /> Add
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {!isAdmin && (
+        <p className="mb-8 text-sm text-muted-foreground">
+          Only admins can change feeds, categories, and appearance.
+        </p>
+      )}
+
+      {isAdmin && (
+        <p className="mb-8 text-sm text-muted-foreground">
+          Feed and category changes apply on the next scheduled curation run. Theme changes apply
+          immediately.
+        </p>
+      )}
 
       {/* Theme */}
-      <section className="mb-10">
-        <h2 className="mb-3 text-lg font-semibold">Theme</h2>
+      {isAdmin && (
+        <>
+          <section className="mb-10">
+            <h2 className="mb-3 text-lg font-semibold">Theme</h2>
         <label className="mb-2 block text-sm font-medium">Accent color</label>
         <div className="mb-3 flex flex-wrap gap-2">
           {ACCENT_PRESETS.map((p) => (
@@ -407,6 +565,8 @@ export default function SettingsPage() {
           ))}
         </div>
       </section>
+        </>
+      )}
     </div>
   );
 }

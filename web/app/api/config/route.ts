@@ -1,4 +1,5 @@
-import { isAuthed, unauthorized } from "@/lib/auth";
+import { sessionUser, isAuthed, unauthorized } from "@/lib/auth";
+import { getUser } from "@/lib/users";
 import { readAppConfig, writeAppConfig, type AppConfig } from "@/lib/appconfig";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +11,12 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!isAuthed(request)) return unauthorized();
+  const user = sessionUser(request);
+  if (!user) return unauthorized();
+  const rec = await getUser(user);
+  if (rec?.role !== "admin") {
+    return Response.json({ error: "only admins can change settings" }, { status: 403 });
+  }
   const body = (await request.json().catch(() => null)) as Partial<AppConfig> | null;
   if (!body || !Array.isArray(body.categories)) {
     return Response.json({ error: "invalid config" }, { status: 400 });

@@ -1,17 +1,20 @@
 import { readReactions, setReaction } from "@/lib/data";
 import type { Reaction } from "@/lib/types";
-import { isAuthed, unauthorized } from "@/lib/auth";
+import { sessionUser, unauthorized } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  if (!isAuthed(request)) return unauthorized();
-  return Response.json(await readReactions());
+  const user = sessionUser(request);
+  if (!user) return unauthorized();
+  return Response.json(await readReactions(user));
 }
 
 export async function POST(request: Request) {
-  if (!isAuthed(request)) return unauthorized();
+  const user = sessionUser(request);
+  if (!user) return unauthorized();
+
   const body = (await request.json().catch(() => null)) as
     | { id?: unknown; reaction?: unknown }
     | null;
@@ -21,12 +24,9 @@ export async function POST(request: Request) {
   }
   const r = body.reaction;
   if (r !== "up" && r !== "down" && r !== null) {
-    return Response.json(
-      { error: "reaction must be 'up', 'down', or null" },
-      { status: 400 },
-    );
+    return Response.json({ error: "reaction must be 'up', 'down', or null" }, { status: 400 });
   }
 
-  const reactions = await setReaction(body.id, r as Reaction | null);
+  const reactions = await setReaction(user, body.id, r as Reaction | null);
   return Response.json(reactions);
 }
