@@ -58,12 +58,25 @@ export function checkCredentials(username: string, password: string): boolean {
   return p.length > 0 && username === u && password === p;
 }
 
-export function sessionSetCookie(): string {
-  return `${SESSION_COOKIE}=${sessionToken()}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${MAX_AGE}`;
+/** True when the request reached us over HTTPS (directly or via a proxy). */
+export function isSecureRequest(req: Request): boolean {
+  const xf = req.headers.get("x-forwarded-proto");
+  if (xf) return xf.split(",")[0]!.trim() === "https";
+  try {
+    return new URL(req.url).protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
-export function sessionClearCookie(): string {
-  return `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
+export function sessionSetCookie(secure: boolean): string {
+  const flags = `Path=/; HttpOnly;${secure ? " Secure;" : ""} SameSite=Lax`;
+  return `${SESSION_COOKIE}=${sessionToken()}; ${flags}; Max-Age=${MAX_AGE}`;
+}
+
+export function sessionClearCookie(secure: boolean): string {
+  const flags = `Path=/; HttpOnly;${secure ? " Secure;" : ""} SameSite=Lax`;
+  return `${SESSION_COOKIE}=; ${flags}; Max-Age=0`;
 }
 
 /** Shared 401 helper for protected API routes. */

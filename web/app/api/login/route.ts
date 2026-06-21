@@ -1,4 +1,4 @@
-import { checkCredentials, sessionSetCookie } from "@/lib/auth";
+import { checkCredentials, sessionSetCookie, isSecureRequest } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +14,6 @@ export async function POST(request: Request) {
   }
 
   const res = Response.json({ ok: true });
-  res.headers.set("Set-Cookie", sessionSetCookie());
+  res.headers.set("Set-Cookie", sessionSetCookie(isSecureRequest(request)));
   return res;
 }
