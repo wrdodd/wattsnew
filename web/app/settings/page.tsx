@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Plus,
   Trash,
@@ -9,9 +9,12 @@ import {
   ArrowDown,
   FloppyDisk,
   ArrowLeft,
+  DownloadSimple,
+  UploadSimple,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { applyTheme } from "@/lib/theme";
+import { toOPML, fromOPML } from "@/lib/opml";
 
 interface FeedSource {
   name: string;
@@ -47,6 +50,7 @@ export default function SettingsPage() {
   const [cfg, setCfg] = useState<AppConfig | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/config", { cache: "no-store" })
@@ -76,6 +80,33 @@ export default function SettingsPage() {
   }
   function patchCategories(categories: CategoryConfig[]) {
     patch({ categories });
+  }
+
+  function exportOPML() {
+    if (!cfg) return;
+    const blob = new Blob([toOPML(cfg.categories)], { type: "text/x-opml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "dailynews.opml";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importOPML(file: File) {
+    setError("");
+    try {
+      const cats = fromOPML(await file.text());
+      if (cats.length === 0) {
+        setError("No feeds found in that OPML file");
+        setStatus("error");
+        return;
+      }
+      patchCategories(cats);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "import failed");
+      setStatus("error");
+    }
   }
 
   async function save() {
@@ -220,6 +251,38 @@ export default function SettingsPage() {
               placeholder="e.g. your town, county"
             />
           </div>
+        </div>
+      </section>
+
+      {/* Import / Export */}
+      <section className="mb-10">
+        <h2 className="mb-3 text-lg font-semibold">Import / Export (OPML)</h2>
+        <p className="mb-3 text-sm text-muted-foreground">
+          Back up your feeds, or bring subscriptions from another reader. Importing replaces the
+          categories below — review, then Save.
+        </p>
+        <div className="flex gap-2">
+          <Button variant="outline" className="rounded-full" onClick={exportOPML}>
+            <DownloadSimple size={18} /> Export OPML
+          </Button>
+          <Button
+            variant="outline"
+            className="rounded-full"
+            onClick={() => fileRef.current?.click()}
+          >
+            <UploadSimple size={18} /> Import OPML
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".opml,.xml,text/xml,text/x-opml"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) importOPML(f);
+              e.target.value = "";
+            }}
+          />
         </div>
       </section>
 

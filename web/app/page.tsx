@@ -11,6 +11,7 @@ import {
   Newspaper,
   SignOut,
   GearSix,
+  ArrowLeft,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +44,7 @@ export default function Page() {
   const [dark, setDark] = useState(false);
   const [loading, setLoading] = useState(true);
   const [filterReady, setFilterReady] = useState(false);
+  const [mobileArticle, setMobileArticle] = useState(false); // mobile: show reading pane
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   // Theme: restore preference, default to dark (easier on the eyes in the car at night).
@@ -156,14 +158,14 @@ export default function Page() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
       {/* Top header: brand + category filter + actions */}
-      <header className="flex shrink-0 items-stretch border-b">
-        <div className="flex shrink-0 items-center gap-2 px-5 py-3">
+      <header className="flex shrink-0 flex-wrap items-center gap-2 border-b px-4 py-2 md:flex-nowrap md:gap-3">
+        <div className="flex shrink-0 items-center gap-2">
           <Newspaper size={26} weight="fill" className="text-primary" />
           <span className="text-xl font-semibold tracking-tight">Daily News</span>
         </div>
 
-        <div className="flex min-w-0 flex-1 items-center justify-between gap-3 px-4 py-3">
-          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1">
+        <div className="order-last w-full overflow-x-auto md:order-none md:w-auto md:min-w-0 md:flex-1">
+          <div className="flex items-center gap-2 py-1">
             {filters.map((f) => (
               <Button
                 key={f}
@@ -184,62 +186,68 @@ export default function Page() {
               </Button>
             ))}
           </div>
+        </div>
 
-          <div className="flex shrink-0 items-center gap-2">
-            <Button
-              size="lg"
-              variant={likedOnly ? "default" : "outline"}
-              className="rounded-full"
-              onClick={() => setLikedOnly((v) => !v)}
-              title="Show only liked articles"
-            >
-              <ThumbsUp size={20} weight={likedOnly ? "fill" : "regular"} />
-              Liked
-            </Button>
-            <Button
-              size="lg"
-              variant={hideDisliked ? "default" : "outline"}
-              className="rounded-full"
-              onClick={() => setHideDisliked((v) => !v)}
-              title="Hide articles you marked not interested"
-            >
-              <ThumbsDown size={20} weight={hideDisliked ? "fill" : "regular"} />
-              Hide
-            </Button>
-            <Button size="icon-lg" variant="ghost" onClick={loadFeed} title="Refresh">
-              <ArrowsClockwise size={20} />
-            </Button>
-            <Button size="icon-lg" variant="ghost" asChild title="Settings">
-              <Link href="/settings">
-                <GearSix size={20} />
-              </Link>
-            </Button>
-            <Button
-              size="icon-lg"
-              variant="ghost"
-              onClick={() => setDark((v) => !v)}
-              title="Toggle light / dark"
-            >
-              {dark ? <Sun size={20} /> : <Moon size={20} />}
-            </Button>
-            <Button
-              size="icon-lg"
-              variant="ghost"
-              onClick={async () => {
-                await fetch("/api/logout", { method: "POST" }).catch(() => {});
-                window.location.href = "/login";
-              }}
-              title="Sign out"
-            >
-              <SignOut size={20} />
-            </Button>
-          </div>
+        <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0">
+          <Button
+            size="lg"
+            variant={likedOnly ? "default" : "outline"}
+            className="rounded-full"
+            onClick={() => setLikedOnly((v) => !v)}
+            title="Show only liked articles"
+          >
+            <ThumbsUp size={20} weight={likedOnly ? "fill" : "regular"} />
+            <span className="hidden lg:inline">Liked</span>
+          </Button>
+          <Button
+            size="lg"
+            variant={hideDisliked ? "default" : "outline"}
+            className="rounded-full"
+            onClick={() => setHideDisliked((v) => !v)}
+            title="Hide articles you marked not interested"
+          >
+            <ThumbsDown size={20} weight={hideDisliked ? "fill" : "regular"} />
+            <span className="hidden lg:inline">Hide</span>
+          </Button>
+          <Button size="icon-lg" variant="ghost" onClick={loadFeed} title="Refresh">
+            <ArrowsClockwise size={20} />
+          </Button>
+          <Button size="icon-lg" variant="ghost" asChild title="Settings">
+            <Link href="/settings">
+              <GearSix size={20} />
+            </Link>
+          </Button>
+          <Button
+            size="icon-lg"
+            variant="ghost"
+            onClick={() => setDark((v) => !v)}
+            title="Toggle light / dark"
+          >
+            {dark ? <Sun size={20} /> : <Moon size={20} />}
+          </Button>
+          <Button
+            size="icon-lg"
+            variant="ghost"
+            onClick={async () => {
+              await fetch("/api/logout", { method: "POST" }).catch(() => {});
+              window.location.href = "/login";
+            }}
+            title="Sign out"
+          >
+            <SignOut size={20} />
+          </Button>
         </div>
       </header>
 
       <div className="flex min-h-0 flex-1">
-        {/* Left sidebar: list of articles that were added */}
-        <aside className="flex min-h-0 w-[340px] shrink-0 flex-col border-r bg-sidebar">
+        {/* Left sidebar: list of articles. On mobile it's full-width and hidden
+            while reading; on md+ it's a fixed column shown alongside the pane. */}
+        <aside
+          className={cn(
+            "min-h-0 w-full shrink-0 flex-col border-r bg-sidebar md:flex md:w-[340px]",
+            mobileArticle ? "hidden" : "flex",
+          )}
+        >
           <div ref={sidebarRef} className="flex-1 overflow-y-auto">
             <ul className="divide-y">
               {filtered.map((a) => (
@@ -248,7 +256,10 @@ export default function Page() {
                   article={a}
                   reaction={reactions[a.id]}
                   active={selected?.id === a.id}
-                  onSelect={() => setSelectedId(a.id)}
+                  onSelect={() => {
+                    setSelectedId(a.id);
+                    setMobileArticle(true);
+                  }}
                 />
               ))}
               {filtered.length === 0 && (
@@ -267,10 +278,20 @@ export default function Page() {
           </div>
         </aside>
 
-        {/* Main reading pane */}
-        <main className="min-h-0 min-w-0 flex-1">
+        {/* Main reading pane. Hidden on mobile until an article is opened. */}
+        <main
+          className={cn(
+            "min-h-0 min-w-0 flex-1 md:flex md:flex-col",
+            mobileArticle ? "flex flex-col" : "hidden",
+          )}
+        >
           {selected ? (
-            <ReadingPane article={selected} reaction={reactions[selected.id]} onReact={react} />
+            <ReadingPane
+              article={selected}
+              reaction={reactions[selected.id]}
+              onReact={react}
+              onBack={() => setMobileArticle(false)}
+            />
           ) : (
             <div className="flex h-full items-center justify-center p-10 text-center text-muted-foreground">
               <p className="max-w-md text-lg">
@@ -329,10 +350,12 @@ function ReadingPane({
   article,
   reaction,
   onReact,
+  onBack,
 }: {
   article: Article;
   reaction?: Reaction;
   onReact: (id: string, r: Reaction) => void;
+  onBack: () => void;
 }) {
   const [content, setContent] = useState<string | null>(null);
   const [image, setImage] = useState<string | null>(null);
@@ -369,7 +392,13 @@ function ReadingPane({
 
   return (
     <div ref={scrollRef} className="h-full overflow-y-auto">
-      <article className="mx-auto max-w-6xl px-8 py-8 lg:px-12">
+      <article className="mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-8 lg:px-12">
+        <button
+          onClick={onBack}
+          className="mb-4 flex items-center gap-1 text-base text-muted-foreground md:hidden"
+        >
+          <ArrowLeft size={20} /> Back to list
+        </button>
         <div className="mb-4 flex items-center gap-3">
           <Badge className="text-sm">{article.category}</Badge>
           <span className="text-base text-muted-foreground">

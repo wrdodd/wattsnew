@@ -77,11 +77,12 @@ run; theme changes apply immediately. (You can also edit `config.json` directly.
 
 - [x] **Config-driven feeds/categories** via `config.json` + an in-app Settings UI
 - [x] **Theme settings** (accent color, font-size presets) in the UI
+- [x] **OPML import/export**
+- [x] **Mobile/responsive layout** (master-detail on phones)
+- [x] Prebuilt images on GHCR + GitHub Actions CI
 - [ ] **Multiple users** (per-user logins, reactions, preferences) — next up
-- [ ] **OPML import/export**
-- [ ] **Mobile/responsive layout** & PWA
 - [ ] Read/unread, search, save-for-later
-- [ ] Prebuilt images on GHCR + GitHub Actions CI
+- [ ] PWA install
 
 ## Deploying to a remote Docker host
 
