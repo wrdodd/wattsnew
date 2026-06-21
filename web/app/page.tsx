@@ -11,7 +11,7 @@ import {
   Newspaper,
   SignOut,
   GearSix,
-  ArrowLeft,
+  X,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -392,12 +392,19 @@ function ReadingPane({
 
   return (
     <div ref={scrollRef} className="h-full overflow-y-auto">
-      {/* Mobile-only sticky back bar — stays visible while scrolling the article
-          so there's always a way back to the list. Desktop shows the list
-          alongside, so it doesn't need one. */}
-      <div className="sticky top-0 z-10 flex items-center border-b bg-background/90 px-2 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/75 md:hidden">
-        <Button variant="ghost" size="lg" className="gap-2 rounded-full" onClick={onBack}>
-          <ArrowLeft size={22} weight="bold" /> Back to list
+      {/* Mobile-only sticky close button (upper-right) — stays visible while
+          scrolling the article so there's always a way back to the list.
+          Desktop shows the list alongside, so it doesn't need one. */}
+      <div className="sticky top-0 z-10 flex justify-end px-2 py-2 md:hidden">
+        <Button
+          variant="secondary"
+          size="icon-lg"
+          className="rounded-full shadow-sm"
+          onClick={onBack}
+          title="Close — back to list"
+          aria-label="Back to list"
+        >
+          <X size={24} weight="bold" />
         </Button>
       </div>
       <article className="mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-8 lg:px-12">
