@@ -38,7 +38,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm rounded-3xl border bg-card p-8 shadow-sm">
         <div className="mb-6 flex items-center gap-2">
           <Newspaper size={28} weight="fill" className="text-primary" />
-          <h1 className="text-2xl font-semibold tracking-tight">Daily News</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">WattsNew</h1>
         </div>
 
         <form onSubmit={onSubmit} className="flex flex-col gap-4">

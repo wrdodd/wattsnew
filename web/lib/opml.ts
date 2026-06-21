@@ -16,7 +16,7 @@ function esc(s: string): string {
 }
 
 /** Serialize categories → OPML 2.0 (categories as nested outlines). */
-export function toOPML(categories: CategoryConfig[], title = "Daily News"): string {
+export function toOPML(categories: CategoryConfig[], title = "WattsNew"): string {
   const body = categories
     .map((c) => {
       const feeds = c.feeds

@@ -161,7 +161,7 @@ export default function Page() {
       <header className="flex shrink-0 flex-wrap items-center gap-2 border-b px-4 py-2 md:flex-nowrap md:gap-3">
         <div className="flex shrink-0 items-center gap-2">
           <Newspaper size={26} weight="fill" className="text-primary" />
-          <span className="text-xl font-semibold tracking-tight">Daily News</span>
+          <span className="text-xl font-semibold tracking-tight">WattsNew</span>
         </div>
 
         <div className="order-last w-full overflow-x-auto md:order-none md:w-auto md:min-w-0 md:flex-1">

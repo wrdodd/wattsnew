@@ -144,7 +144,7 @@ export default function SettingsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "dailynews.opml";
+    a.download = "wattsnew.opml";
     a.click();
     URL.revokeObjectURL(url);
   }

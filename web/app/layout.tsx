@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Daily News",
+  title: "WattsNew",
   description: "Twice-daily curated tech, AI, science, gaming, politics & entertainment news.",
 };
 

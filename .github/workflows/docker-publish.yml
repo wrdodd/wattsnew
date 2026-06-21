@@ -15,9 +15,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - image: dailynews-worker
+          - image: wattsnew-worker
             context: ./worker
-          - image: dailynews-web
+          - image: wattsnew-web
             context: ./web
     steps:
       - uses: actions/checkout@v4
