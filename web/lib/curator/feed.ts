@@ -1,6 +1,6 @@
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
 import { join } from "node:path";
-import type { Article, Feed } from "./types.js";
+import type { Article, Feed } from "../types";
 
 /** Load the existing public feed, or an empty one if none exists yet. */
 export async function loadFeed(dataDir: string): Promise<Feed> {
@@ -17,7 +17,7 @@ export async function loadFeed(dataDir: string): Promise<Feed> {
 /**
  * Merge newly curated articles into the feed, drop anything older than the
  * retention window, and sort newest-added first (so the website sidebar shows
- * "the articles that were added" at the top).
+ * "the articles that were added" at the top). Written atomically.
  */
 export async function writeFeed(
   dataDir: string,
@@ -41,6 +41,8 @@ export async function writeFeed(
     articles,
   };
   await mkdir(dataDir, { recursive: true });
-  await writeFile(join(dataDir, "feed.json"), JSON.stringify(feed, null, 2), "utf8");
+  const tmp = join(dataDir, `feed.json.tmp-${process.pid}`);
+  await writeFile(tmp, JSON.stringify(feed, null, 2), "utf8");
+  await rename(tmp, join(dataDir, "feed.json"));
   return feed;
 }

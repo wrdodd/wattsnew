@@ -5,7 +5,10 @@
 node_modules/
 .next/
 web/.next/
-worker/.data-test/
+
+# local curator data dir (when DATA_DIR points inside the repo for dev)
+.data-test/
+web/.data-test/
 
 # misc
 *.log

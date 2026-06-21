@@ -5,17 +5,17 @@ then refined for phone and desktop.**
 
 WattsNew started life on the big center screen of a Tesla Model Y: large type,
 generous tap targets, and a clean two-pane layout meant to be read while parked
-or charging. It works just as well on a phone or laptop. A background worker
-curates fresh articles from RSS feeds across categories (AI, Tech, Science,
+or charging. It works just as well on a phone or laptop. A built-in curator
+fetches fresh articles from RSS feeds across categories (AI, Tech, Science,
 Business, Gaming, Politics, Entertainment, Local…) on a schedule; the web reader
 lets you browse by category, read full articles in-place, and thumbs-up/down
-stories to tune what you see.
+stories to tune what you see. It all runs in **one small Docker container**.
 
 - 🚗 **Tesla-first, everywhere-friendly** — designed for the in-car browser
   (large type, big tap targets, two-pane reading), then refined for phones and
   desktop.
 - 🔒 **Fully self-hosted & private** — no tracking, no third-party services. Runs
-  on your own machine in two Docker containers.
+  on your own machine in a single Docker container.
 - 🧠 **No AI required** — summaries come straight from the feeds. Optionally plug
   in Claude or OpenAI for nicer summaries.
 - 📖 **Read in-place** — the reader extracts the full article (with images), so
@@ -49,18 +49,24 @@ Log in with the `DASHBOARD_USER` / `DASHBOARD_PASSWORD` from your `.env`.
 ## How it works
 
 ```
-   RSS feeds ──▶  worker  ──(writes)──▶  /data  ──(reads)──▶  web  ──▶  you
- (per category)   fetch · filter ·     feed.json            Next.js
-                  dedup · rank ·       reactions.json       reader
-                  summarize
+              ┌──────────── one container (Next.js) ────────────┐
+   RSS feeds ─┼▶ curator ──(writes)──▶ /data ──(reads)──▶ reader ┼─▶ you
+ (per category)  fetch · filter ·      feed.json          in-place
+                 dedup · rank ·        reactions.json     article view
+                 summarize             config.json
+              └─────────────────────────────────────────────────┘
 ```
 
-- **worker** — fetches each category's feeds, drops paywalled/duplicate/old
-  items, ranks (recency + your reactions + optional keyword boost), and writes
-  `feed.json`. Runs on a cron schedule.
-- **web** — a Next.js app serving the feed, the in-place article reader, and the
-  reaction API. Guarded by a single login.
-- Both share one Docker volume (`/data`).
+- **curator** — runs *inside* the Next.js server (started from
+  `instrumentation.ts`): fetches each category's feeds, drops
+  paywalled/duplicate/old items, ranks (recency + your reactions + optional
+  keyword boost), and writes `feed.json` on a cron schedule.
+- **reader** — the Next.js app serving the feed, the in-place article reader, and
+  the reaction/config APIs. Guarded by a single login.
+- State persists to one Docker volume (`/data`): `feed.json`, `reactions.json`,
+  `config.json`. (Earlier versions split this into separate worker/web
+  containers; it's now a single process — see `CURATOR_ENABLED` if you run
+  multiple replicas.)
 
 ## Configuration
 
@@ -73,6 +79,8 @@ All via environment variables (see [`.env.example`](.env.example)):
 | `WEB_PORT` | `8080` | Host port for the reader |
 | `CRON` | `0 8,18 * * *` | Curation schedule (cron) |
 | `TZ` / `TIMEZONE` | `America/New_York` | Timezone for the schedule |
+| `RUN_ON_START` | `true` | Curate once on startup (fresh content on first boot) |
+| `CURATOR_ENABLED` | `true` | Set `false` to disable curation on this instance (multi-replica setups) |
 | `LLM_PROVIDER` | `none` | `none` \| `anthropic` \| `openai` for summaries |
 
 Everything else — **feeds, categories, per-category counts, recency/retention,

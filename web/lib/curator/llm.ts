@@ -1,13 +1,15 @@
-import Anthropic from "@anthropic-ai/sdk";
-import OpenAI from "openai";
-import type { Config } from "./config.js";
-import type { Category, RawItem } from "./types.js";
-import { truncateWords } from "./util.js";
+import type { CuratorConfig } from "./config";
+import type { Category, RawItem } from "../types";
+import { truncateWords } from "./util";
 
 /**
  * Turns selected raw items into clean 2–3 sentence, text-only summaries.
  * Pluggable so the model is a "decide later" choice: with no key it falls back
- * to the article's own RSS text, so the worker runs today with zero credentials.
+ * to the article's own RSS text, so the app runs today with zero credentials.
+ *
+ * The Anthropic/OpenAI SDKs are loaded lazily (dynamic import) only when a
+ * provider is actually configured, so the default "none" path never pulls them
+ * into memory.
  */
 export interface Summarizer {
   readonly label: string;
@@ -15,9 +17,7 @@ export interface Summarizer {
 }
 
 function fallbackSummaries(items: RawItem[]): string[] {
-  return items.map((it) =>
-    it.snippet ? truncateWords(it.snippet, 55) : `${it.title}.`,
-  );
+  return items.map((it) => (it.snippet ? truncateWords(it.snippet, 55) : `${it.title}.`));
 }
 
 const SYSTEM_PROMPT = [
@@ -68,12 +68,10 @@ class NoneSummarizer implements Summarizer {
 
 class AnthropicSummarizer implements Summarizer {
   readonly label: string;
-  private client: Anthropic;
-  private model: string;
-
-  constructor(apiKey: string, model: string) {
-    this.client = new Anthropic({ apiKey });
-    this.model = model;
+  constructor(
+    private apiKey: string,
+    private model: string,
+  ) {
     this.label = `anthropic ${model}`;
   }
 
@@ -81,15 +79,16 @@ class AnthropicSummarizer implements Summarizer {
     if (items.length === 0) return [];
     const fallback = fallbackSummaries(items);
     try {
-      const resp = await this.client.messages.create({
+      const { default: Anthropic } = await import("@anthropic-ai/sdk");
+      const client = new Anthropic({ apiKey: this.apiKey });
+      const resp = await client.messages.create({
         model: this.model,
         max_tokens: 1500,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: buildPrompt(category, items) }],
       });
       const text = resp.content
-        .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map((b) => b.text)
+        .map((b) => (b.type === "text" ? b.text : ""))
         .join("\n");
       const parsed = parseSummaries(text, items.length);
       if (!parsed) return fallback;
@@ -103,12 +102,10 @@ class AnthropicSummarizer implements Summarizer {
 
 class OpenAISummarizer implements Summarizer {
   readonly label: string;
-  private client: OpenAI;
-  private model: string;
-
-  constructor(apiKey: string, model: string) {
-    this.client = new OpenAI({ apiKey });
-    this.model = model;
+  constructor(
+    private apiKey: string,
+    private model: string,
+  ) {
     this.label = `openai ${model}`;
   }
 
@@ -116,7 +113,9 @@ class OpenAISummarizer implements Summarizer {
     if (items.length === 0) return [];
     const fallback = fallbackSummaries(items);
     try {
-      const resp = await this.client.chat.completions.create({
+      const { default: OpenAI } = await import("openai");
+      const client = new OpenAI({ apiKey: this.apiKey });
+      const resp = await client.chat.completions.create({
         model: this.model,
         max_tokens: 1500,
         messages: [
@@ -135,7 +134,7 @@ class OpenAISummarizer implements Summarizer {
   }
 }
 
-export function createSummarizer(config: Config): Summarizer {
+export function createSummarizer(config: CuratorConfig): Summarizer {
   const { provider, anthropicApiKey, anthropicModel, openaiApiKey, openaiModel } = config.llm;
   if (provider === "anthropic" && anthropicApiKey) {
     return new AnthropicSummarizer(anthropicApiKey, anthropicModel);

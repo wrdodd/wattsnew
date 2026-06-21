@@ -1,4 +1,5 @@
-# Website: Next.js news reader. Multi-stage build → small standalone runtime.
+# WattsNew: single-container app — Next.js reader + in-process news curator
+# (started from instrumentation.ts). Multi-stage build → small standalone runtime.
 FROM node:24-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -14,8 +15,9 @@ RUN npm run build
 FROM node:24-alpine AS runner
 WORKDIR /app
 
-# Headless Chromium for the article reader's fallback (sites that block server fetches).
-RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont \
+# Headless Chromium for the article reader's fallback (sites that block server
+# fetches), plus tzdata so the curator's cron resolves the configured TZ.
+RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont tzdata \
  && (test -e /usr/bin/chromium-browser || ln -s /usr/bin/chromium /usr/bin/chromium-browser)
 
 ENV NODE_ENV=production

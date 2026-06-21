@@ -1,13 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { Feed } from "./types.js";
+import type { Feed } from "../types";
 
 /**
  * Turn every reader's 👍/👎 (reactions.json) into a per-source score: +1 for
  * each upvoted article from an outlet, -1 for each downvoted one, aggregated
  * across all users (the feed is shared). Curation uses this to boost liked
  * sources and suppress disliked ones. Article→source is resolved from the
- * current feed first, then from the worker's dedup memory.
+ * current feed first, then from the curator's dedup memory.
  *
  * reactions.json is `{ user: { articleId: "up"|"down" } }`; an older flat
  * `{ articleId: "up"|"down" }` is still accepted.

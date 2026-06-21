@@ -8,9 +8,10 @@ const nextConfig: NextConfig = {
   // machine otherwise confuses file tracing for the standalone build).
   outputFileTracingRoot: path.resolve(__dirname),
   turbopack: { root: path.resolve(__dirname) },
-  // puppeteer-core talks to a system Chromium over CDP — don't bundle it, and
-  // make sure its files land in the standalone output.
-  serverExternalPackages: ["puppeteer-core"],
+  // Native/heavy server-only packages we don't want webpack to bundle. The
+  // in-process curator (instrumentation.ts) lazy-loads the LLM SDKs only when a
+  // provider is configured; keeping them external avoids bundling them at all.
+  serverExternalPackages: ["puppeteer-core", "@anthropic-ai/sdk", "openai"],
   outputFileTracingIncludes: {
     "/api/article": ["./node_modules/puppeteer-core/**/*"],
   },

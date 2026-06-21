@@ -1,18 +1,18 @@
-import type { Config } from "./config.js";
-import type { Article, RawItem } from "./types.js";
-import { loadAppConfig } from "./appconfig.js";
-import { fetchCategory } from "./fetch.js";
-import { isPaywalled } from "./paywall.js";
-import { SeenStore } from "./dedup.js";
-import { createSummarizer } from "./llm.js";
-import { loadFeed, writeFeed } from "./feed.js";
-import { computeSourceScores } from "./personalize.js";
-import { idFromUrl } from "./util.js";
+import type { CuratorConfig } from "./config";
+import type { Article, RawItem } from "../types";
+import { loadAppConfig } from "./appconfig";
+import { fetchCategory } from "./fetch";
+import { isPaywalled } from "./paywall";
+import { SeenStore } from "./dedup";
+import { createSummarizer } from "./llm";
+import { loadFeed, writeFeed } from "./feed";
+import { computeSourceScores } from "./personalize";
+import { idFromUrl } from "./util";
 
 type Candidate = { it: RawItem; id: string };
 
-// Boost articles mentioning any of the configured keywords (BOOST_KEYWORDS) to
-// the top of the boost category (BOOST_CATEGORY) — e.g. your town for "Local".
+// Boost articles mentioning any of the configured keywords (boostKeywords) to
+// the top of the boost category (boostCategory) — e.g. your town for "Local".
 function keywordBonus(it: RawItem, keywords: string[]): number {
   if (keywords.length === 0) return 0;
   const hay = `${it.title} ${it.snippet}`.toLowerCase();
@@ -58,7 +58,7 @@ function rankAndPick(
 }
 
 /** One full curation pass: fetch → filter → dedup → pick → summarize → write. */
-export async function curate(config: Config): Promise<void> {
+export async function curate(config: CuratorConfig): Promise<void> {
   const startedAt = new Date();
   const app = await loadAppConfig(config.dataDir);
   const seen = new SeenStore(config.dataDir);
@@ -66,14 +66,14 @@ export async function curate(config: Config): Promise<void> {
   const summarizer = createSummarizer(config);
   const recencyCutoff = startedAt.getTime() - app.recencyHours * 3600 * 1000;
   console.log(
-    `[${startedAt.toISOString()}] curate start — model=${summarizer.label}, remembered=${seen.size}`,
+    `[curator] [${startedAt.toISOString()}] curate start — model=${summarizer.label}, remembered=${seen.size}`,
   );
 
   const sourceScores = await computeSourceScores(config.dataDir, seen.sourceMap());
   if (sourceScores.size > 0) {
     const liked = [...sourceScores.values()].filter((s) => s > 0).length;
     const disliked = [...sourceScores.values()].filter((s) => s < 0).length;
-    console.log(`  personalization: ${liked} liked / ${disliked} disliked source(s)`);
+    console.log(`[curator]   personalization: ${liked} liked / ${disliked} disliked source(s)`);
   }
   const perSourceCap = Math.max(3, Math.ceil(app.maxPerCategory * 0.5));
 
@@ -83,7 +83,7 @@ export async function curate(config: Config): Promise<void> {
     const raw = await fetchCategory(category, cat.feeds);
 
     const seenThisRun = new Set<string>();
-    const candidates: { it: RawItem; id: string }[] = [];
+    const candidates: Candidate[] = [];
     for (const it of raw) {
       const ts = it.publishedAt.getTime();
       if (Number.isNaN(ts) || ts < recencyCutoff) continue; // recent only
@@ -120,7 +120,7 @@ export async function curate(config: Config): Promise<void> {
       });
       seen.add(id, it.title, it.source);
     });
-    console.log(`  ${category}: ${top.length} new (from ${raw.length} fetched)`);
+    console.log(`[curator]   ${category}: ${top.length} new (from ${raw.length} fetched)`);
   }
 
   // Remember dedup ids a little longer than the feed keeps articles.
@@ -135,5 +135,7 @@ export async function curate(config: Config): Promise<void> {
     app.feedRetentionDays,
     app.categories.map((c) => c.name),
   );
-  console.log(`curate done — +${fresh.length} new, feed now holds ${feed.articles.length} articles`);
+  console.log(
+    `[curator] curate done — +${fresh.length} new, feed now holds ${feed.articles.length} articles`,
+  );
 }

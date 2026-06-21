@@ -32,3 +32,14 @@ export interface Feed {
 
 export type Reaction = "up" | "down";
 export type Reactions = Record<string, Reaction>;
+
+/** A raw item pulled from an RSS feed before curation (used by the curator). */
+export interface RawItem {
+  category: Category;
+  title: string;
+  url: string;
+  source: string;
+  publishedAt: Date;
+  /** Best-effort plain-text snippet from the feed (used as the no-LLM summary). */
+  snippet: string;
+}

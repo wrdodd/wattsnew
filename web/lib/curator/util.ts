@@ -52,21 +52,3 @@ export function truncateWords(text: string, maxWords: number): string {
   if (words.length <= maxWords) return text;
   return words.slice(0, maxWords).join(" ").replace(/[,;:]?$/, "") + "…";
 }
-
-export async function mapLimit<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T, index: number) => Promise<R>,
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let next = 0;
-  async function worker(): Promise<void> {
-    while (next < items.length) {
-      const i = next++;
-      results[i] = await fn(items[i]!, i);
-    }
-  }
-  const n = Math.min(limit, items.length);
-  await Promise.all(Array.from({ length: n }, () => worker()));
-  return results;
-}

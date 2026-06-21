@@ -1,6 +1,7 @@
 import Parser from "rss-parser";
-import type { Category, FeedSource, RawItem } from "./types.js";
-import { stripHtml, truncateWords } from "./util.js";
+import type { FeedSource } from "../appconfig";
+import type { Category, RawItem } from "../types";
+import { stripHtml, truncateWords } from "./util";
 
 const parser = new Parser({
   timeout: 15000,

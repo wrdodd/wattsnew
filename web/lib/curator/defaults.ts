@@ -1,4 +1,4 @@
-import type { AppConfig } from "./types.js";
+import type { AppConfig } from "../appconfig";
 
 /**
  * Default configuration, written to config.json on first run. Users customize

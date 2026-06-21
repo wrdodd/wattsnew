@@ -10,7 +10,7 @@ interface SeenEntry {
 type SeenMap = Record<string, SeenEntry>;
 
 /**
- * The worker's cross-run memory: every article id it has ever surfaced.
+ * The curator's cross-run memory: every article id it has ever surfaced.
  * Strict URL-level dedup means the same article never reappears; a genuine
  * "breaking update" is a different URL, so it still comes through.
  */
