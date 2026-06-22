@@ -7,7 +7,10 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   if (!isAuthed(request)) return unauthorized();
-  return Response.json(await readAppConfig());
+  const cfg = await readAppConfig();
+  // Surface whether the server has a SearXNG instance wired up (without leaking
+  // the URL) so the Settings UI can show its status.
+  return Response.json({ ...cfg, searxngEnabled: !!process.env.SEARXNG_URL });
 }
 
 export async function POST(request: Request) {

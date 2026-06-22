@@ -49,6 +49,7 @@ const inputCls =
 
 export default function SettingsPage() {
   const [cfg, setCfg] = useState<AppConfig | null>(null);
+  const [searxngEnabled, setSearxngEnabled] = useState(false);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -68,7 +69,10 @@ export default function SettingsPage() {
         }
         return r.json();
       })
-      .then(setCfg)
+      .then((j) => {
+        setCfg(j);
+        setSearxngEnabled(!!j?.searxngEnabled);
+      })
       .catch(() => {});
   }, []);
 
@@ -364,6 +368,21 @@ export default function SettingsPage() {
       {/* Curation */}
       <section className="mb-10">
         <h2 className="mb-3 text-lg font-semibold">Curation</h2>
+        <div className="mb-4 rounded-lg border p-3 text-sm">
+          <span className="font-medium">Web search (SearXNG): </span>
+          {searxngEnabled ? (
+            <>
+              <span className="text-primary">Connected.</span> Each category can pull extra fresh
+              news from your SearXNG instance — set a <strong>search query</strong> per category in{" "}
+              <span className="font-medium">Categories &amp; feeds</span> below.
+            </>
+          ) : (
+            <span className="text-muted-foreground">
+              Not configured. Set <code className="rounded bg-muted px-1">SEARXNG_URL</code> on the
+              server to augment feeds with web-search news, then add a query per category below.
+            </span>
+          )}
+        </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <NumberField
             label="Articles per category"
