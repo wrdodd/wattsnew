@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   DownloadSimple,
   UploadSimple,
+  ArrowsClockwise,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { applyTheme } from "@/lib/theme";
@@ -55,6 +56,8 @@ export default function SettingsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const catsRef = useRef<HTMLDivElement>(null);
   const addedCatRef = useRef(false);
+  const [refreshingCat, setRefreshingCat] = useState<string | null>(null);
+  const [refreshResult, setRefreshResult] = useState<Record<string, string>>({});
   const [account, setAccount] = useState<{ username: string; role: string } | null>(null);
   const [users, setUsers] = useState<{ username: string; role: string; createdAt: string }[]>([]);
   const [newUser, setNewUser] = useState({ username: "", password: "", role: "user" });
@@ -147,6 +150,30 @@ export default function SettingsPage() {
   function addCategory() {
     addedCatRef.current = true;
     patchCategories([...(cfg?.categories ?? []), { name: "New category", feeds: [] }]);
+  }
+
+  async function refreshCategory(name: string) {
+    setRefreshingCat(name);
+    setRefreshResult((m) => ({ ...m, [name]: "" }));
+    try {
+      const r = await fetch("/api/curate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ category: name }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.error || "failed");
+      const c =
+        d.perCategory?.find((x: { category: string }) => x.category === name) ?? d.perCategory?.[0];
+      const msg = c
+        ? `+${c.added} new (RSS ${c.rss}${searxngEnabled ? `, SearXNG ${c.searx}` : ""})`
+        : "done";
+      setRefreshResult((m) => ({ ...m, [name]: msg }));
+    } catch (e) {
+      setRefreshResult((m) => ({ ...m, [name]: e instanceof Error ? e.message : "failed" }));
+    } finally {
+      setRefreshingCat(null);
+    }
   }
 
   // A new category is appended at the bottom of a long list — scroll it into
@@ -509,6 +536,11 @@ export default function SettingsPage() {
           with JSON enabled), the optional <strong>search query</strong> below adds fresh web-search
           news to the mix for that category.
         </p>
+        <p className="mb-3 text-sm text-muted-foreground">
+          The refresh button (⟳) on a category runs curation for just that one right now — handy for
+          testing. It uses your most recently <strong>saved</strong> settings, so Save first if you
+          just changed a feed or query.
+        </p>
 
         <div ref={catsRef} className="flex flex-col gap-4">
           {cfg.categories.map((cat, ci) => (
@@ -523,6 +555,18 @@ export default function SettingsPage() {
                     patchCategories(next);
                   }}
                 />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  title="Run curation for this category now (uses saved settings)"
+                  disabled={refreshingCat !== null}
+                  onClick={() => refreshCategory(cat.name)}
+                >
+                  <ArrowsClockwise
+                    size={16}
+                    className={refreshingCat === cat.name ? "animate-spin" : ""}
+                  />
+                </Button>
                 <Button
                   size="icon"
                   variant="ghost"
@@ -569,6 +613,11 @@ export default function SettingsPage() {
                   patchCategories(next);
                 }}
               />
+              {(refreshingCat === cat.name || refreshResult[cat.name]) && (
+                <p className="mb-3 -mt-1 text-xs text-primary">
+                  {refreshingCat === cat.name ? "Refreshing…" : refreshResult[cat.name]}
+                </p>
+              )}
 
               <div className="flex flex-col gap-2">
                 {cat.feeds.map((f, fi) => (

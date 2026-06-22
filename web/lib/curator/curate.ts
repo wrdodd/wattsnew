@@ -86,10 +86,51 @@ function rankAndPick(
   return picked;
 }
 
-/** One full curation pass: fetch → filter → dedup → pick → summarize → write. */
-export async function curate(config: CuratorConfig): Promise<void> {
+export interface CategoryResult {
+  category: string;
+  rss: number;
+  searx: number;
+  added: number;
+}
+export interface CurateSummary {
+  perCategory: CategoryResult[];
+  totalAdded: number;
+  feedCount: number;
+}
+
+// Prevent scheduled and on-demand runs from overlapping (shared seen/feed files).
+let running = false;
+
+/**
+ * One curation pass: fetch → filter → dedup → pick → summarize → write.
+ * Pass `opts.category` to run a single category on demand (for testing).
+ * Guarded so concurrent runs can't race on seen.json / feed.json.
+ */
+export async function curate(
+  config: CuratorConfig,
+  opts: { category?: string } = {},
+): Promise<CurateSummary> {
+  if (running) throw new Error("curation already in progress");
+  running = true;
+  try {
+    return await runCurate(config, opts);
+  } finally {
+    running = false;
+  }
+}
+
+async function runCurate(
+  config: CuratorConfig,
+  opts: { category?: string },
+): Promise<CurateSummary> {
   const startedAt = new Date();
   const app = await loadAppConfig(config.dataDir);
+  const targetCats = opts.category
+    ? app.categories.filter((c) => c.name === opts.category)
+    : app.categories;
+  if (opts.category && targetCats.length === 0) {
+    throw new Error(`unknown category: ${opts.category}`);
+  }
   const seen = new SeenStore(config.dataDir);
   await seen.load();
   const summarizer = createSummarizer(config);
@@ -107,7 +148,8 @@ export async function curate(config: CuratorConfig): Promise<void> {
   const perSourceCap = Math.max(3, Math.ceil(app.maxPerCategory * 0.5));
 
   const fresh: Article[] = [];
-  for (const cat of app.categories) {
+  const perCategory: CategoryResult[] = [];
+  for (const cat of targetCats) {
     const category = cat.name;
     const rssItems = await fetchCategory(category, cat.feeds);
 
@@ -164,6 +206,12 @@ export async function curate(config: CuratorConfig): Promise<void> {
       ? `${rssItems.length} RSS + ${searxItems.length} SearXNG`
       : `${raw.length}`;
     console.log(`[curator]   ${category}: ${top.length} new (from ${srcNote} fetched)`);
+    perCategory.push({
+      category,
+      rss: rssItems.length,
+      searx: searxItems.length,
+      added: top.length,
+    });
   }
 
   // Remember dedup ids a little longer than the feed keeps articles.
@@ -181,4 +229,5 @@ export async function curate(config: CuratorConfig): Promise<void> {
   console.log(
     `[curator] curate done — +${fresh.length} new, feed now holds ${feed.articles.length} articles`,
   );
+  return { perCategory, totalAdded: fresh.length, feedCount: feed.articles.length };
 }
