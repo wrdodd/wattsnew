@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
 import { join } from "node:path";
 import type { Article, Feed } from "../types";
+import { normalizeTitleKey } from "./util";
 
 /** Load the existing public feed, or an empty one if none exists yet. */
 export async function loadFeed(dataDir: string): Promise<Feed> {
@@ -31,9 +32,20 @@ export async function writeFeed(
   for (const a of existing.articles) byId.set(a.id, a);
   for (const a of fresh) byId.set(a.id, a); // fresh wins on id collision
 
-  const articles = [...byId.values()]
+  const sorted = [...byId.values()]
     .filter((a) => new Date(a.addedAt).getTime() >= cutoff)
     .sort((a, b) => b.addedAt.localeCompare(a.addedAt) || b.publishedAt.localeCompare(a.publishedAt));
+
+  // Collapse same-headline duplicates (e.g. the same story from KGW and KOIN),
+  // keeping the freshest copy. Cleans up any twins already in the feed too.
+  const seenTitles = new Set<string>();
+  const articles = sorted.filter((a) => {
+    const key = normalizeTitleKey(a.title);
+    if (!key) return true;
+    if (seenTitles.has(key)) return false;
+    seenTitles.add(key);
+    return true;
+  });
 
   const feed: Feed = {
     generatedAt: new Date().toISOString(),

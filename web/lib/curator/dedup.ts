@@ -1,5 +1,6 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { normalizeTitleKey } from "./util";
 
 interface SeenEntry {
   title: string;
@@ -16,10 +17,20 @@ type SeenMap = Record<string, SeenEntry>;
  */
 export class SeenStore {
   private map: SeenMap = {};
+  // Normalized headline keys of everything seen — for cross-source/cross-run
+  // title dedup. Derived from `map` (no schema change), rebuilt on load/prune.
+  private titleKeys = new Set<string>();
   private readonly path: string;
 
   constructor(dataDir: string) {
     this.path = join(dataDir, "seen.json");
+  }
+
+  private rebuildTitleKeys(): void {
+    this.titleKeys = new Set();
+    for (const e of Object.values(this.map)) {
+      if (e.title) this.titleKeys.add(normalizeTitleKey(e.title));
+    }
   }
 
   async load(): Promise<void> {
@@ -28,14 +39,21 @@ export class SeenStore {
     } catch {
       this.map = {};
     }
+    this.rebuildTitleKeys();
   }
 
   has(id: string): boolean {
     return id in this.map;
   }
 
+  /** True if a headline with this normalized key has been surfaced before. */
+  hasTitle(key: string): boolean {
+    return key !== "" && this.titleKeys.has(key);
+  }
+
   add(id: string, title: string, source?: string): void {
     if (!this.map[id]) this.map[id] = { title, source, firstSeenAt: new Date().toISOString() };
+    if (title) this.titleKeys.add(normalizeTitleKey(title));
   }
 
   /** id → source, for entries that recorded it (used by personalization). */
@@ -53,6 +71,7 @@ export class SeenStore {
     for (const [id, entry] of Object.entries(this.map)) {
       if (new Date(entry.firstSeenAt).getTime() < cutoff) delete this.map[id];
     }
+    this.rebuildTitleKeys();
   }
 
   get size(): number {

@@ -8,7 +8,11 @@ import { createSummarizer } from "./llm";
 import { loadFeed, writeFeed } from "./feed";
 import { computeSourceScores } from "./personalize";
 import { searchCategory } from "./searx";
-import { idFromUrl } from "./util";
+import { idFromUrl, normalizeTitleKey, titleTokenSet, jaccard } from "./util";
+
+// Headlines this similar (Jaccard of meaningful word tokens) are treated as the
+// same story even from different outlets — catches reworded wire copy.
+const NEAR_DUP_THRESHOLD = 0.7;
 
 type Candidate = { it: RawItem; id: string };
 
@@ -42,17 +46,41 @@ function rankAndPick(
 
   const picked: Candidate[] = [];
   const counts = new Map<string, number>();
+  const pickedTitleKeys = new Set<string>();
+  const pickedTokens: Set<string>[] = [];
+
+  // Same headline (or near-enough) as one already picked this run → skip, so two
+  // outlets covering the same story don't both appear. Keeps the higher-ranked.
+  const isTitleDup = (c: Candidate): boolean => {
+    const key = normalizeTitleKey(c.it.title);
+    if (key && pickedTitleKeys.has(key)) return true;
+    const tokens = titleTokenSet(c.it.title);
+    if (tokens.size >= 4 && pickedTokens.some((p) => jaccard(tokens, p) >= NEAR_DUP_THRESHOLD)) {
+      return true;
+    }
+    return false;
+  };
+  const remember = (c: Candidate): void => {
+    pickedTitleKeys.add(normalizeTitleKey(c.it.title));
+    pickedTokens.push(titleTokenSet(c.it.title));
+  };
+
   for (const c of sorted) {
     if (picked.length >= n) break;
     if ((counts.get(c.it.source) ?? 0) >= perSourceCap) continue;
+    if (isTitleDup(c)) continue;
     picked.push(c);
+    remember(c);
     counts.set(c.it.source, (counts.get(c.it.source) ?? 0) + 1);
   }
-  // If the per-source cap left us short, top up by rank ignoring the cap.
+  // If the per-source cap left us short, top up by rank ignoring the cap (but
+  // still never adding a duplicate headline).
   if (picked.length < n) {
     for (const c of sorted) {
       if (picked.length >= n) break;
-      if (!picked.includes(c)) picked.push(c);
+      if (picked.includes(c) || isTitleDup(c)) continue;
+      picked.push(c);
+      remember(c);
     }
   }
   return picked;
@@ -98,7 +126,10 @@ export async function curate(config: CuratorConfig): Promise<void> {
       if (Number.isNaN(ts) || ts < recencyCutoff) continue; // recent only
       if (isPaywalled(it.url)) continue; // non-paywalled only
       const id = idFromUrl(it.url);
-      if (seen.has(id) || seenThisRun.has(id)) continue; // no repeats
+      if (seen.has(id) || seenThisRun.has(id)) continue; // no repeat URLs
+      // Skip stories already surfaced in a prior run under a different URL
+      // (e.g. the same wire piece picked up later by another outlet).
+      if (seen.hasTitle(normalizeTitleKey(it.title))) continue;
       seenThisRun.add(id);
       candidates.push({ it, id });
     }
