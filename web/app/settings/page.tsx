@@ -53,6 +53,8 @@ export default function SettingsPage() {
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const catsRef = useRef<HTMLDivElement>(null);
+  const addedCatRef = useRef(false);
   const [account, setAccount] = useState<{ username: string; role: string } | null>(null);
   const [users, setUsers] = useState<{ username: string; role: string; createdAt: string }[]>([]);
   const [newUser, setNewUser] = useState({ username: "", password: "", role: "user" });
@@ -142,6 +144,22 @@ export default function SettingsPage() {
   function patchCategories(categories: CategoryConfig[]) {
     patch({ categories });
   }
+  function addCategory() {
+    addedCatRef.current = true;
+    patchCategories([...(cfg?.categories ?? []), { name: "New category", feeds: [] }]);
+  }
+
+  // A new category is appended at the bottom of a long list — scroll it into
+  // view and focus its name so the "+ Category" click has obvious feedback.
+  useEffect(() => {
+    if (!addedCatRef.current) return;
+    addedCatRef.current = false;
+    const last = catsRef.current?.lastElementChild as HTMLElement | null;
+    last?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const input = last?.querySelector("input") as HTMLInputElement | null;
+    input?.focus();
+    input?.select();
+  }, [cfg?.categories.length]);
 
   function exportOPML() {
     if (!cfg) return;
@@ -472,7 +490,7 @@ export default function SettingsPage() {
             size="sm"
             variant="outline"
             className="rounded-full"
-            onClick={() => patchCategories([...cfg.categories, { name: "New category", feeds: [] }])}
+            onClick={addCategory}
           >
             <Plus size={16} /> Category
           </Button>
@@ -492,7 +510,7 @@ export default function SettingsPage() {
           news to the mix for that category.
         </p>
 
-        <div className="flex flex-col gap-4">
+        <div ref={catsRef} className="flex flex-col gap-4">
           {cfg.categories.map((cat, ci) => (
             <div key={ci} className="rounded-xl border p-4">
               <div className="mb-3 flex items-center gap-2">
