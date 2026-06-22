@@ -23,6 +23,7 @@ interface FeedSource {
 interface CategoryConfig {
   name: string;
   feeds: FeedSource[];
+  query?: string;
 }
 interface AppConfig {
   categories: CategoryConfig[];
@@ -457,6 +458,20 @@ export default function SettingsPage() {
             <Plus size={16} /> Category
           </Button>
         </div>
+        <p className="mb-3 text-sm text-muted-foreground">
+          Each category pulls from its RSS feeds. If your server has{" "}
+          <code className="rounded bg-muted px-1">SEARXNG_URL</code> set (a self-hosted{" "}
+          <a
+            href="https://docs.searxng.org/"
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary underline underline-offset-2"
+          >
+            SearXNG
+          </a>{" "}
+          with JSON enabled), the optional <strong>search query</strong> below adds fresh web-search
+          news to the mix for that category.
+        </p>
 
         <div className="flex flex-col gap-4">
           {cfg.categories.map((cat, ci) => (
@@ -506,6 +521,17 @@ export default function SettingsPage() {
                   <Trash size={16} className="text-destructive" />
                 </Button>
               </div>
+
+              <input
+                className={inputCls + " mb-3 text-sm"}
+                value={cat.query ?? ""}
+                placeholder="SearXNG search query (optional) — e.g. &quot;artificial intelligence&quot;"
+                onChange={(e) => {
+                  const next = [...cfg.categories];
+                  next[ci] = { ...cat, query: e.target.value };
+                  patchCategories(next);
+                }}
+              />
 
               <div className="flex flex-col gap-2">
                 {cat.feeds.map((f, fi) => (

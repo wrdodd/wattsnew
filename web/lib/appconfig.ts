@@ -8,6 +8,8 @@ export interface FeedSource {
 export interface CategoryConfig {
   name: string;
   feeds: FeedSource[];
+  /** Optional SearXNG news query for this category (augments RSS). */
+  query?: string;
 }
 export type FontScale = "comfortable" | "large" | "xlarge";
 export interface ThemeConfig {
@@ -70,12 +72,16 @@ export async function writeAppConfig(input: Partial<AppConfig>): Promise<AppConf
 
   const cfg: AppConfig = {
     categories: (input.categories ?? [])
-      .map((c) => ({
-        name: String(c?.name ?? "").trim(),
-        feeds: (c?.feeds ?? [])
-          .map((f) => ({ name: String(f?.name ?? "").trim(), url: String(f?.url ?? "").trim() }))
-          .filter((f) => f.url),
-      }))
+      .map((c) => {
+        const query = String(c?.query ?? "").trim();
+        return {
+          name: String(c?.name ?? "").trim(),
+          ...(query ? { query } : {}),
+          feeds: (c?.feeds ?? [])
+            .map((f) => ({ name: String(f?.name ?? "").trim(), url: String(f?.url ?? "").trim() }))
+            .filter((f) => f.url),
+        };
+      })
       .filter((c) => c.name),
     maxPerCategory: clampInt(input.maxPerCategory, 1, 50, 10),
     recencyHours: clampInt(input.recencyHours, 1, 720, 48),

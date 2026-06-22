@@ -7,6 +7,7 @@ import { SeenStore } from "./dedup";
 import { createSummarizer } from "./llm";
 import { loadFeed, writeFeed } from "./feed";
 import { computeSourceScores } from "./personalize";
+import { searchCategory } from "./searx";
 import { idFromUrl } from "./util";
 
 type Candidate = { it: RawItem; id: string };
@@ -80,7 +81,15 @@ export async function curate(config: CuratorConfig): Promise<void> {
   const fresh: Article[] = [];
   for (const cat of app.categories) {
     const category = cat.name;
-    const raw = await fetchCategory(category, cat.feeds);
+    const rssItems = await fetchCategory(category, cat.feeds);
+
+    // Optionally augment RSS with fresh results from a self-hosted SearXNG.
+    let searxItems: RawItem[] = [];
+    if (config.searxngUrl) {
+      const query = cat.query?.trim() || category;
+      searxItems = await searchCategory(config.searxngUrl, category, query, app.recencyHours);
+    }
+    const raw = searxItems.length ? rssItems.concat(searxItems) : rssItems;
 
     const seenThisRun = new Set<string>();
     const candidates: Candidate[] = [];
@@ -120,7 +129,10 @@ export async function curate(config: CuratorConfig): Promise<void> {
       });
       seen.add(id, it.title, it.source);
     });
-    console.log(`[curator]   ${category}: ${top.length} new (from ${raw.length} fetched)`);
+    const srcNote = config.searxngUrl
+      ? `${rssItems.length} RSS + ${searxItems.length} SearXNG`
+      : `${raw.length}`;
+    console.log(`[curator]   ${category}: ${top.length} new (from ${srcNote} fetched)`);
   }
 
   // Remember dedup ids a little longer than the feed keeps articles.

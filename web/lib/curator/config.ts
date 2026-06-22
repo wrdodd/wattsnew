@@ -12,6 +12,8 @@ export interface CuratorConfig {
   timezone: string;
   runOnStart: boolean;
   enabled: boolean;
+  /** Optional self-hosted SearXNG base URL for augmenting RSS with web search. */
+  searxngUrl?: string;
   llm: {
     provider: LlmProvider;
     anthropicApiKey?: string;
@@ -36,6 +38,7 @@ export function loadCuratorConfig(): CuratorConfig {
     runOnStart: bool("RUN_ON_START", true),
     // Lets multi-replica deployments run curation on exactly one instance.
     enabled: bool("CURATOR_ENABLED", true),
+    searxngUrl: process.env.SEARXNG_URL?.replace(/\/+$/, "") || undefined,
     llm: {
       provider: ["none", "anthropic", "openai"].includes(provider) ? provider : "none",
       anthropicApiKey: process.env.ANTHROPIC_API_KEY,

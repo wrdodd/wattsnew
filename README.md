@@ -81,6 +81,7 @@ All via environment variables (see [`.env.example`](.env.example)):
 | `TZ` / `TIMEZONE` | `America/New_York` | Timezone for the schedule |
 | `RUN_ON_START` | `true` | Curate once on startup (fresh content on first boot) |
 | `CURATOR_ENABLED` | `true` | Set `false` to disable curation on this instance (multi-replica setups) |
+| `SEARXNG_URL` | — | Optional self-hosted [SearXNG](https://docs.searxng.org/) base URL to augment RSS with web-search news (needs JSON format enabled) |
 | `LLM_PROVIDER` | `none` | `none` \| `anthropic` \| `openai` for summaries |
 
 Everything else — **feeds, categories, per-category counts, recency/retention,
